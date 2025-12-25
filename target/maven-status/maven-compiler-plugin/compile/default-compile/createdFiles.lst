@@ -1,3 +1,11 @@
+MainApp$1.class
+service/ProductManager.class
+MainApp$4.class
+MainApp$2.class
 MainApp.class
+model/Product.class
+exception/DataFileException.class
 model/ComputerPart.class
-service/PartManager.class
+MainApp$3.class
+exception/InvalidProductException.class
+model/Accessory.class

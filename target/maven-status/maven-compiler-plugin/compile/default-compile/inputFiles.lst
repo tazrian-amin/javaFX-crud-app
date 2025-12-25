@@ -1,3 +1,7 @@
-/Users/tazrian/Documents/NSU/Courses/CSE215/computer-parts-resale-store/src/service/PartManager.java
+/Users/tazrian/Documents/NSU/Courses/CSE215/computer-parts-resale-store/src/service/ProductManager.java
+/Users/tazrian/Documents/NSU/Courses/CSE215/computer-parts-resale-store/src/model/Product.java
 /Users/tazrian/Documents/NSU/Courses/CSE215/computer-parts-resale-store/src/model/ComputerPart.java
+/Users/tazrian/Documents/NSU/Courses/CSE215/computer-parts-resale-store/src/exception/DataFileException.java
+/Users/tazrian/Documents/NSU/Courses/CSE215/computer-parts-resale-store/src/model/Accessory.java
+/Users/tazrian/Documents/NSU/Courses/CSE215/computer-parts-resale-store/src/exception/InvalidProductException.java
 /Users/tazrian/Documents/NSU/Courses/CSE215/computer-parts-resale-store/src/MainApp.java

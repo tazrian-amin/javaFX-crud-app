@@ -1,4 +1,6 @@
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -6,25 +8,83 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+import model.Product;
 import model.ComputerPart;
-import service.PartManager;
+import model.Accessory;
+import service.ProductManager;
+import exception.DataFileException;
+import exception.InvalidProductException;
 
 /**
- * MainApp - JavaFX Application for Computer Parts Resale Store
- * Demonstrates GUI creation and event handling
+ * MainApp - JavaFX Application with Multithreading and Exception Handling
+ * Demonstrates: GUI, Event Handling, Multithreading, Exception Handling, Polymorphism
  */
 public class MainApp extends Application {
     
-    private PartManager partManager;
-    private TableView<ComputerPart> tableView;
+    private ProductManager productManager;
+    private TableView<Product> tableView;
     private TextField nameField, categoryField, priceField, quantityField;
+    private ComboBox<String> typeComboBox;
     private Button addButton, updateButton, deleteButton, clearButton;
     private Label statusLabel;
+    private ProgressIndicator progressIndicator;
     
     @Override
     public void start(Stage primaryStage) {
-        partManager = new PartManager();
+        // Initialize with loading indicator
+        showLoadingScreen(primaryStage);
         
+        // Load data in background thread (Multithreading)
+        Task<Void> loadTask = new Task<Void>() {
+            @Override
+            protected Void call() throws Exception {
+                try {
+                    productManager = new ProductManager();
+                } catch (DataFileException e) {
+                    throw e;
+                }
+                return null;
+            }
+            
+            @Override
+            protected void succeeded() {
+                Platform.runLater(() -> showMainScreen(primaryStage));
+            }
+            
+            @Override
+            protected void failed() {
+                Platform.runLater(() -> {
+                    showErrorDialog("Startup Error", 
+                        "Failed to load data: " + getException().getMessage());
+                    primaryStage.close();
+                });
+            }
+        };
+        
+        // Start background loading
+        new Thread(loadTask).start();
+    }
+    
+    private void showLoadingScreen(Stage stage) {
+        VBox loadingBox = new VBox(20);
+        loadingBox.setAlignment(Pos.CENTER);
+        loadingBox.setStyle("-fx-background-color: #f5f5f5;");
+        
+        Label loadingLabel = new Label("Loading Computer Parts Store...");
+        loadingLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+        
+        ProgressIndicator loading = new ProgressIndicator();
+        loading.setMaxSize(60, 60);
+        
+        loadingBox.getChildren().addAll(loading, loadingLabel);
+        
+        Scene scene = new Scene(loadingBox, 400, 300);
+        stage.setTitle("Computer Parts Store Manager");
+        stage.setScene(scene);
+        stage.show();
+    }
+    
+    private void showMainScreen(Stage primaryStage) {
         // Main container
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(15));
@@ -48,58 +108,82 @@ public class MainApp extends Application {
         VBox formBox = createFormPanel();
         root.setRight(formBox);
         
-        // Bottom - Status bar
-        statusLabel = new Label("Ready");
-        statusLabel.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-        HBox statusBox = new HBox(statusLabel);
-        statusBox.setPadding(new Insets(10, 0, 0, 0));
+        // Bottom - Status bar with progress indicator
+        HBox statusBox = createStatusBar();
         root.setBottom(statusBox);
         
         // Create scene and show
-        Scene scene = new Scene(root, 1000, 600);
-        primaryStage.setTitle("Computer Parts Store Manager");
+        Scene scene = new Scene(root, 1100, 600);
         primaryStage.setScene(scene);
-        primaryStage.show();
+        primaryStage.setTitle("Computer Parts Store Manager");
         
         // Load initial data
         refreshTable();
     }
     
-    private TableView<ComputerPart> createTableView() {
-        TableView<ComputerPart> table = new TableView<>();
+    private TableView<Product> createTableView() {
+        TableView<Product> table = new TableView<>();
         table.setStyle("-fx-background-color: white;");
         
         // ID Column
-        TableColumn<ComputerPart, Integer> idCol = new TableColumn<>("ID");
+        TableColumn<Product, Integer> idCol = new TableColumn<>("ID");
         idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
         idCol.setPrefWidth(50);
         
+        // Type Column (demonstrates polymorphism)
+        TableColumn<Product, String> typeCol = new TableColumn<>("Type");
+        typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
+        typeCol.setPrefWidth(100);
+        
         // Name Column
-        TableColumn<ComputerPart, String> nameCol = new TableColumn<>("Part Name");
+        TableColumn<Product, String> nameCol = new TableColumn<>("Name");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
         nameCol.setPrefWidth(150);
         
-        // Category Column
-        TableColumn<ComputerPart, String> categoryCol = new TableColumn<>("Category");
-        categoryCol.setCellValueFactory(new PropertyValueFactory<>("category"));
-        categoryCol.setPrefWidth(120);
+        // Category/Brand Column (polymorphic display)
+        TableColumn<Product, String> detailCol = new TableColumn<>("Details");
+        detailCol.setCellValueFactory(cellData -> {
+            Product product = cellData.getValue();
+            if (product instanceof ComputerPart) {
+                return new javafx.beans.property.SimpleStringProperty(
+                    ((ComputerPart) product).getCategory());
+            } else if (product instanceof Accessory) {
+                return new javafx.beans.property.SimpleStringProperty(
+                    ((Accessory) product).getBrand());
+            }
+            return new javafx.beans.property.SimpleStringProperty("");
+        });
+        detailCol.setPrefWidth(120);
         
         // Price Column
-        TableColumn<ComputerPart, Double> priceCol = new TableColumn<>("Price ($)");
+        TableColumn<Product, Double> priceCol = new TableColumn<>("Price ($)");
         priceCol.setCellValueFactory(new PropertyValueFactory<>("price"));
         priceCol.setPrefWidth(80);
         
         // Quantity Column
-        TableColumn<ComputerPart, Integer> quantityCol = new TableColumn<>("Quantity");
+        TableColumn<Product, Integer> quantityCol = new TableColumn<>("Quantity");
         quantityCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
         quantityCol.setPrefWidth(80);
         
-        table.getColumns().addAll(idCol, nameCol, categoryCol, priceCol, quantityCol);
+        // Total Value Column
+        TableColumn<Product, Double> valueCol = new TableColumn<>("Total Value");
+        valueCol.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleDoubleProperty(
+                cellData.getValue().getTotalValue()).asObject());
+        valueCol.setPrefWidth(100);
+        
+        table.getColumns().add(idCol);
+        table.getColumns().add(typeCol);
+        table.getColumns().add(nameCol);
+        table.getColumns().add(detailCol);
+        table.getColumns().add(priceCol);
+        table.getColumns().add(quantityCol);
+        table.getColumns().add(valueCol);
         
         // Handle row selection
         table.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
-                loadPartToForm(newSelection);
+                loadProductToForm(newSelection);
             }
         });
         
@@ -109,19 +193,27 @@ public class MainApp extends Application {
     private VBox createFormPanel() {
         VBox formBox = new VBox(10);
         formBox.setPadding(new Insets(10, 0, 10, 15));
-        formBox.setPrefWidth(300);
+        formBox.setPrefWidth(320);
         formBox.setStyle("-fx-background-color: white; -fx-background-radius: 5; -fx-padding: 15;");
         
-        Label formTitle = new Label("Part Details");
+        Label formTitle = new Label("Product Details");
         formTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+        
+        // Product Type Selection
+        typeComboBox = new ComboBox<>();
+        typeComboBox.getItems().addAll("Computer Part", "Accessory");
+        typeComboBox.setValue("Computer Part");
+        typeComboBox.setMaxWidth(Double.MAX_VALUE);
+        typeComboBox.setStyle("-fx-padding: 8;");
+        typeComboBox.setOnAction(e -> updateFormLabels());
         
         // Input fields
         nameField = new TextField();
-        nameField.setPromptText("Part Name");
+        nameField.setPromptText("Product Name");
         nameField.setStyle("-fx-padding: 8;");
         
         categoryField = new TextField();
-        categoryField.setPromptText("Category (e.g., CPU, GPU, RAM)");
+        categoryField.setPromptText("Category (for Computer Part)");
         categoryField.setStyle("-fx-padding: 8;");
         
         priceField = new TextField();
@@ -133,9 +225,9 @@ public class MainApp extends Application {
         quantityField.setStyle("-fx-padding: 8;");
         
         // Buttons
-        addButton = createStyledButton("Add Part", "#27ae60");
-        updateButton = createStyledButton("Update Part", "#3498db");
-        deleteButton = createStyledButton("Delete Part", "#e74c3c");
+        addButton = createStyledButton("Add Product", "#27ae60");
+        updateButton = createStyledButton("Update Product", "#3498db");
+        deleteButton = createStyledButton("Delete Product", "#e74c3c");
         clearButton = createStyledButton("Clear Form", "#95a5a6");
         
         // Button actions
@@ -148,8 +240,9 @@ public class MainApp extends Application {
         formBox.getChildren().addAll(
             formTitle,
             new Separator(),
+            new Label("Product Type:"), typeComboBox,
             new Label("Name:"), nameField,
-            new Label("Category:"), categoryField,
+            new Label("Category/Brand:"), categoryField,
             new Label("Price:"), priceField,
             new Label("Quantity:"), quantityField,
             new Separator(),
@@ -157,6 +250,31 @@ public class MainApp extends Application {
         );
         
         return formBox;
+    }
+    
+    private HBox createStatusBar() {
+        HBox statusBox = new HBox(10);
+        statusBox.setPadding(new Insets(10, 0, 0, 0));
+        statusBox.setAlignment(Pos.CENTER_LEFT);
+        
+        statusLabel = new Label("Ready");
+        statusLabel.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+        
+        progressIndicator = new ProgressIndicator();
+        progressIndicator.setMaxSize(20, 20);
+        progressIndicator.setVisible(false);
+        
+        statusBox.getChildren().addAll(statusLabel, progressIndicator);
+        return statusBox;
+    }
+    
+    private void updateFormLabels() {
+        String type = typeComboBox.getValue();
+        if ("Computer Part".equals(type)) {
+            categoryField.setPromptText("Category (e.g., CPU, GPU, RAM)");
+        } else {
+            categoryField.setPromptText("Brand (e.g., Logitech, Razer)");
+        }
     }
     
     private Button createStyledButton(String text, String color) {
@@ -174,87 +292,192 @@ public class MainApp extends Application {
     }
     
     private void handleAdd() {
-        try {
-            String name = nameField.getText().trim();
-            String category = categoryField.getText().trim();
-            double price = Double.parseDouble(priceField.getText().trim());
-            int quantity = Integer.parseInt(quantityField.getText().trim());
+        // Multithreading: Perform add operation in background
+        Task<Void> addTask = new Task<Void>() {
+            private String errorMessage;
             
-            if (name.isEmpty() || category.isEmpty()) {
-                showStatus("Please fill all fields!", "#e74c3c");
-                return;
+            @Override
+            protected Void call() throws Exception {
+                try {
+                    String name = nameField.getText().trim();
+                    String detail = categoryField.getText().trim();
+                    double price = Double.parseDouble(priceField.getText().trim());
+                    int quantity = Integer.parseInt(quantityField.getText().trim());
+                    
+                    if (name.isEmpty() || detail.isEmpty()) {
+                        throw new InvalidProductException("Please fill all fields!");
+                    }
+                    
+                    int id = productManager.getNextId();
+                    Product product;
+                    
+                    // Polymorphism: Create appropriate product type
+                    if ("Computer Part".equals(typeComboBox.getValue())) {
+                        product = new ComputerPart(id, name, detail, price, quantity);
+                    } else {
+                        product = new Accessory(id, name, detail, price, quantity);
+                    }
+                    
+                    productManager.addProduct(product);  // May throw exceptions
+                    
+                } catch (NumberFormatException e) {
+                    errorMessage = "Invalid price or quantity format!";
+                    throw new Exception(errorMessage);
+                } catch (InvalidProductException | DataFileException e) {
+                    errorMessage = e.getMessage();
+                    throw e;
+                }
+                return null;
             }
             
-            int id = partManager.getNextId();
-            ComputerPart part = new ComputerPart(id, name, category, price, quantity);
-            partManager.addPart(part);
+            @Override
+            protected void succeeded() {
+                Platform.runLater(() -> {
+                    refreshTable();
+                    clearForm();
+                    showStatus("Product added successfully!", "#27ae60");
+                });
+            }
             
-            refreshTable();
-            clearForm();
-            showStatus("Part added successfully!", "#27ae60");
-            
-        } catch (NumberFormatException e) {
-            showStatus("Invalid price or quantity!", "#e74c3c");
-        }
+            @Override
+            protected void failed() {
+                Platform.runLater(() -> {
+                    showErrorDialog("Add Product Error", errorMessage != null ? errorMessage : getException().getMessage());
+                    showStatus("Failed to add product", "#e74c3c");
+                });
+            }
+        };
+        
+        executeTask(addTask, "Adding product...");
     }
     
     private void handleUpdate() {
-        ComputerPart selectedPart = tableView.getSelectionModel().getSelectedItem();
-        if (selectedPart == null) {
-            showStatus("Please select a part to update!", "#e74c3c");
+        Product selectedProduct = tableView.getSelectionModel().getSelectedItem();
+        if (selectedProduct == null) {
+            showErrorDialog("Update Error", "Please select a product to update!");
             return;
         }
         
-        try {
-            String name = nameField.getText().trim();
-            String category = categoryField.getText().trim();
-            double price = Double.parseDouble(priceField.getText().trim());
-            int quantity = Integer.parseInt(quantityField.getText().trim());
+        // Multithreading: Perform update operation in background
+        Task<Void> updateTask = new Task<Void>() {
+            private String errorMessage;
             
-            if (name.isEmpty() || category.isEmpty()) {
-                showStatus("Please fill all fields!", "#e74c3c");
-                return;
+            @Override
+            protected Void call() throws Exception {
+                try {
+                    String name = nameField.getText().trim();
+                    String detail = categoryField.getText().trim();
+                    double price = Double.parseDouble(priceField.getText().trim());
+                    int quantity = Integer.parseInt(quantityField.getText().trim());
+                    
+                    if (name.isEmpty() || detail.isEmpty()) {
+                        throw new InvalidProductException("Please fill all fields!");
+                    }
+                    
+                    Product updatedProduct;
+                    
+                    // Polymorphism: Create appropriate product type
+                    if ("Computer Part".equals(typeComboBox.getValue())) {
+                        updatedProduct = new ComputerPart(selectedProduct.getId(), name, detail, price, quantity);
+                    } else {
+                        updatedProduct = new Accessory(selectedProduct.getId(), name, detail, price, quantity);
+                    }
+                    
+                    productManager.updateProduct(selectedProduct.getId(), updatedProduct);
+                    
+                } catch (NumberFormatException e) {
+                    errorMessage = "Invalid price or quantity format!";
+                    throw new Exception(errorMessage);
+                } catch (InvalidProductException | DataFileException e) {
+                    errorMessage = e.getMessage();
+                    throw e;
+                }
+                return null;
             }
             
-            ComputerPart updatedPart = new ComputerPart(selectedPart.getId(), name, category, price, quantity);
-            partManager.updatePart(selectedPart.getId(), updatedPart);
+            @Override
+            protected void succeeded() {
+                Platform.runLater(() -> {
+                    refreshTable();
+                    clearForm();
+                    showStatus("Product updated successfully!", "#3498db");
+                });
+            }
             
-            refreshTable();
-            clearForm();
-            showStatus("Part updated successfully!", "#3498db");
-            
-        } catch (NumberFormatException e) {
-            showStatus("Invalid price or quantity!", "#e74c3c");
-        }
+            @Override
+            protected void failed() {
+                Platform.runLater(() -> {
+                    showErrorDialog("Update Product Error", errorMessage != null ? errorMessage : getException().getMessage());
+                    showStatus("Failed to update product", "#e74c3c");
+                });
+            }
+        };
+        
+        executeTask(updateTask, "Updating product...");
     }
     
     private void handleDelete() {
-        ComputerPart selectedPart = tableView.getSelectionModel().getSelectedItem();
-        if (selectedPart == null) {
-            showStatus("Please select a part to delete!", "#e74c3c");
+        Product selectedProduct = tableView.getSelectionModel().getSelectedItem();
+        if (selectedProduct == null) {
+            showErrorDialog("Delete Error", "Please select a product to delete!");
             return;
         }
         
         Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
         confirmDialog.setTitle("Confirm Delete");
-        confirmDialog.setHeaderText("Delete Part");
-        confirmDialog.setContentText("Are you sure you want to delete: " + selectedPart.getName() + "?");
+        confirmDialog.setHeaderText("Delete Product");
+        confirmDialog.setContentText("Are you sure you want to delete: " + selectedProduct.getName() + "?");
         
         confirmDialog.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                partManager.deletePart(selectedPart.getId());
-                refreshTable();
-                clearForm();
-                showStatus("Part deleted successfully!", "#e74c3c");
+                // Multithreading: Perform delete operation in background
+                Task<Void> deleteTask = new Task<Void>() {
+                    @Override
+                    protected Void call() throws Exception {
+                        try {
+                            productManager.deleteProduct(selectedProduct.getId());
+                        } catch (DataFileException | InvalidProductException e) {
+                            throw e;
+                        }
+                        return null;
+                    }
+                    
+                    @Override
+                    protected void succeeded() {
+                        Platform.runLater(() -> {
+                            refreshTable();
+                            clearForm();
+                            showStatus("Product deleted successfully!", "#e74c3c");
+                        });
+                    }
+                    
+                    @Override
+                    protected void failed() {
+                        Platform.runLater(() -> {
+                            showErrorDialog("Delete Product Error", getException().getMessage());
+                            showStatus("Failed to delete product", "#e74c3c");
+                        });
+                    }
+                };
+                
+                executeTask(deleteTask, "Deleting product...");
             }
         });
     }
     
-    private void loadPartToForm(ComputerPart part) {
-        nameField.setText(part.getName());
-        categoryField.setText(part.getCategory());
-        priceField.setText(String.valueOf(part.getPrice()));
-        quantityField.setText(String.valueOf(part.getQuantity()));
+    private void loadProductToForm(Product product) {
+        nameField.setText(product.getName());
+        priceField.setText(String.valueOf(product.getPrice()));
+        quantityField.setText(String.valueOf(product.getQuantity()));
+        
+        // Polymorphism: Load type-specific details
+        if (product instanceof ComputerPart) {
+            typeComboBox.setValue("Computer Part");
+            categoryField.setText(((ComputerPart) product).getCategory());
+        } else if (product instanceof Accessory) {
+            typeComboBox.setValue("Accessory");
+            categoryField.setText(((Accessory) product).getBrand());
+        }
     }
     
     private void clearForm() {
@@ -262,13 +485,18 @@ public class MainApp extends Application {
         categoryField.clear();
         priceField.clear();
         quantityField.clear();
+        typeComboBox.setValue("Computer Part");
         tableView.getSelectionModel().clearSelection();
         showStatus("Ready", "#27ae60");
     }
     
     private void refreshTable() {
         tableView.getItems().clear();
-        tableView.getItems().addAll(partManager.getAllParts());
+        tableView.getItems().addAll(productManager.getAllProducts());
+        
+        // Update status with total inventory value
+        double totalValue = productManager.getTotalInventoryValue();
+        showStatus(String.format("Ready | Total Inventory Value: $%.2f", totalValue), "#27ae60");
     }
     
     private void showStatus(String message, String color) {
@@ -276,8 +504,26 @@ public class MainApp extends Application {
         statusLabel.setStyle("-fx-text-fill: " + color + "; -fx-font-weight: bold;");
     }
     
+    private void executeTask(Task<?> task, String statusMessage) {
+        showStatus(statusMessage, "#3498db");
+        progressIndicator.setVisible(true);
+        
+        task.setOnSucceeded(e -> progressIndicator.setVisible(false));
+        task.setOnFailed(e -> progressIndicator.setVisible(false));
+        
+        // Run task in background thread
+        new Thread(task).start();
+    }
+    
+    private void showErrorDialog(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
     public static void main(String[] args) {
         launch(args);
     }
 }
-
