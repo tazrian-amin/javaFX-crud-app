@@ -1,0 +1,19 @@
+# Compiled class files
+*.class
+bin/
+out/
+build/
+
+# IDE specific files
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
