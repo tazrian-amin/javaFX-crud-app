@@ -1,0 +1,218 @@
+@startuml Computer Parts Resale Store - UML Class Diagram
+
+' Styling
+skinparam classAttributeIconSize 0
+skinparam backgroundColor #FFFFFF
+skinparam class {
+    BackgroundColor #F8F9FA
+    BorderColor #2C3E50
+    ArrowColor #34495E
+    FontSize 12
+}
+
+' Title
+title Computer Parts Resale Store - UML Class Diagram
+
+' Packages
+package "model" {
+    abstract class Product {
+        # int id
+        # String name
+        # double price
+        # int quantity
+        
+        + Product(int id, String name, double price, int quantity)
+        + Product()
+        + {abstract} String getType()
+        + {abstract} String toCSV()
+        + void validate() throws InvalidProductException
+        + int getId()
+        + String getName()
+        + double getPrice()
+        + int getQuantity()
+        + void setId(int id)
+        + void setName(String name)
+        + void setPrice(double price)
+        + void setQuantity(int quantity)
+        + double getTotalValue()
+        + String toString()
+    }
+    
+    class ComputerPart {
+        - String category
+        
+        + ComputerPart(int id, String name, String category, double price, int quantity)
+        + ComputerPart()
+        + String getCategory()
+        + void setCategory(String category)
+        + String getType()
+        + void validate() throws InvalidProductException
+        + String toCSV()
+        + {static} ComputerPart fromCSV(String csvLine) throws InvalidProductException
+        + String toString()
+    }
+    
+    class Accessory {
+        - String brand
+        
+        + Accessory(int id, String name, String brand, double price, int quantity)
+        + Accessory()
+        + String getBrand()
+        + void setBrand(String brand)
+        + String getType()
+        + void validate() throws InvalidProductException
+        + String toCSV()
+        + {static} Accessory fromCSV(String csvLine) throws InvalidProductException
+        + String toString()
+    }
+}
+
+package "service" {
+    class ProductManager {
+        - {static} final String DATA_FILE
+        - List<Product> products
+        
+        + ProductManager() throws DataFileException
+        + void addProduct(Product product) throws InvalidProductException, DataFileException
+        + List<Product> getAllProducts()
+        + Product getProductById(int id)
+        + List<ComputerPart> getComputerParts()
+        + List<Accessory> getAccessories()
+        + void updateProduct(int id, Product updatedProduct) throws InvalidProductException, DataFileException
+        + void deleteProduct(int id) throws DataFileException, InvalidProductException
+        + int getNextId()
+        + double getTotalInventoryValue()
+        + void loadFromFile() throws DataFileException
+        - Product createProductFromCSV(String csvLine) throws InvalidProductException
+        + void saveToFile() throws DataFileException
+    }
+}
+
+package "exception" {
+    class DataFileException {
+        + DataFileException(String message)
+        + DataFileException(String message, Throwable cause)
+    }
+    
+    class InvalidProductException {
+        + InvalidProductException(String message)
+        + InvalidProductException(String message, Throwable cause)
+    }
+}
+
+package "main" <<Rectangle>> {
+    class MainApp {
+        - ProductManager productManager
+        - TableView<Product> tableView
+        - TextField nameField
+        - TextField categoryField
+        - TextField priceField
+        - TextField quantityField
+        - ComboBox<String> typeComboBox
+        - Button addButton
+        - Button updateButton
+        - Button deleteButton
+        - Button clearButton
+        - Label statusLabel
+        - ProgressIndicator progressIndicator
+        
+        + void start(Stage primaryStage)
+        - void showLoadingScreen(Stage stage)
+        - void showMainScreen(Stage primaryStage)
+        - TableView<Product> createTableView()
+        - VBox createFormPanel()
+        - HBox createStatusBar()
+        - void updateFormLabels()
+        - Button createStyledButton(String text, String color)
+        - void handleAdd()
+        - void handleUpdate()
+        - void handleDelete()
+        - void loadProductToForm(Product product)
+        - void clearForm()
+        - void refreshTable()
+        - void showStatus(String message, String color)
+        - void executeTask(Task<?> task, String statusMessage)
+        - void showErrorDialog(String title, String message)
+        + {static} void main(String[] args)
+    }
+}
+
+' Java built-in classes (showing relevant ones)
+class Exception <<Java>> {
+}
+
+class Application <<JavaFX>> {
+    + {abstract} void start(Stage primaryStage)
+}
+
+' Inheritance relationships
+ComputerPart --|> Product : extends
+Accessory --|> Product : extends
+MainApp --|> Application : extends
+DataFileException --|> Exception : extends
+InvalidProductException --|> Exception : extends
+
+' Associations and Dependencies
+ProductManager "1" o-- "*" Product : manages >
+ProductManager ..> ComputerPart : uses
+ProductManager ..> Accessory : uses
+ProductManager ..> DataFileException : throws
+ProductManager ..> InvalidProductException : throws
+
+Product ..> InvalidProductException : throws
+ComputerPart ..> InvalidProductException : throws
+Accessory ..> InvalidProductException : throws
+
+MainApp *-- "1" ProductManager : contains
+MainApp ..> Product : uses
+MainApp ..> ComputerPart : uses
+MainApp ..> Accessory : uses
+MainApp ..> DataFileException : handles
+MainApp ..> InvalidProductException : handles
+
+' Notes
+note right of Product
+  Abstract class demonstrating:
+  - Polymorphism
+  - Abstraction
+  - Inheritance
+end note
+
+note right of ProductManager
+  Manages CRUD operations
+  with polymorphic list
+  and file persistence
+end note
+
+note right of MainApp
+  JavaFX Application with:
+  - GUI interface
+  - Multithreading (Task)
+  - Event handling
+  - Exception handling
+end note
+
+note bottom of DataFileException
+  Custom exception for
+  file I/O operations
+end note
+
+note bottom of InvalidProductException
+  Custom exception for
+  invalid product data
+end note
+
+' Legend
+legend right
+  |= Symbol |= Meaning |
+  | --|> | Inheritance (extends) |
+  | ..> | Dependency (uses/throws) |
+  | o-- | Aggregation (has-a) |
+  | *-- | Composition (contains) |
+  | # | Protected |
+  | - | Private |
+  | + | Public |
+endlegend
+
+@enduml
+
