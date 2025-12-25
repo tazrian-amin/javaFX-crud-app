@@ -17,3 +17,7 @@ build/
 
 # Logs
 *.log
+
+# PlantUML
+plantuml.jar
+plantuml*.jar

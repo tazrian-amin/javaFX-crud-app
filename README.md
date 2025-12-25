@@ -8,15 +8,16 @@ A comprehensive JavaFX application demonstrating **fundamental and advanced OOP 
 
 1. [Quick Start](#-quick-start)
 2. [Features](#-features)
-3. [OOP Concepts Demonstrated](#-oop-concepts-demonstrated)
-4. [Project Structure](#-project-structure)
-5. [Setup Instructions](#-setup-instructions)
-6. [Advanced Features](#-advanced-features-explained)
-7. [Code Explanation](#-code-explanation)
-8. [Usage Guide](#-usage-guide)
-9. [Testing](#-testing-the-features)
-10. [Troubleshooting](#-troubleshooting)
-11. [Customization](#-customization)
+3. [UML Class Diagram](#-uml-class-diagram)
+4. [OOP Concepts Demonstrated](#-oop-concepts-demonstrated)
+5. [Project Structure](#-project-structure)
+6. [Setup Instructions](#-setup-instructions)
+7. [Advanced Features](#-advanced-features-explained)
+8. [Code Explanation](#-code-explanation)
+9. [Usage Guide](#-usage-guide)
+10. [Testing](#-testing-the-features)
+11. [Troubleshooting](#-troubleshooting)
+12. [Customization](#-customization)
 
 ---
 
@@ -57,6 +58,23 @@ That's it! The application will start with a loading screen and display the inve
 - ✅ **Progress Indicators**: Visual feedback during all operations
 - ✅ **Loading Screen**: Professional startup experience
 - ✅ **Responsive UI**: Never freezes thanks to background threading
+
+---
+
+## 🎨 UML Class Diagram
+
+The following UML diagram illustrates the complete class structure, relationships, and OOP principles used in this project:
+
+![UML Class Diagram](UML-ClassDiagram.png)
+
+### Key Relationships:
+- **Inheritance**: `ComputerPart` and `Accessory` extend the abstract `Product` class
+- **Composition**: `MainApp` contains a `ProductManager` instance
+- **Aggregation**: `ProductManager` manages a collection of `Product` objects
+- **Dependencies**: Exception classes are used throughout for error handling
+- **Polymorphism**: All product types can be treated as `Product` objects
+
+> **Note**: The diagram source file is available in [UML-ClassDiagram.puml](UML-ClassDiagram.puml) and can be edited with PlantUML tools.
 
 ---
 
